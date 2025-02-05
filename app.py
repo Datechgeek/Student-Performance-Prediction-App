@@ -53,6 +53,19 @@ if submitted:
     input_df['Activity_Balance'] = input_df['Time in activities'] / (input_df['Study length'] + input_df['Time in activities'] + 1e-6)
     input_df['High_Attendance'] = (input_df['Attendance'] >= 4).astype(int)
 
+
+    # Simplify department encoding
+department_mapping = {
+    "Medical Rehabilitation": "Health Sciences",
+    "Nursing Science": "Health Sciences",
+    "Computer Science": "STEM",
+    "Mass Communication": "Humanities",
+    "Business Administration": "Business",
+    # Add more mappings as needed
+}
+
+input_df["Department"] = input_df["Department"].map(department_mapping).fillna("Other")
+
     # Extract feature names from the trained pipeline
     training_columns = model.named_steps["onehotencoder"].get_feature_names_out().tolist()
 
@@ -68,7 +81,7 @@ if submitted:
         if col not in input_df_encoded.columns:
             input_df_encoded[col] = 0
 
-    # Reorder columns to match the expected order
+    # Drop extra columns not present in training data
     input_df_encoded = input_df_encoded[training_columns]
 
     # Debugging: Verify alignment
