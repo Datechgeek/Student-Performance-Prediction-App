@@ -15,7 +15,7 @@ st.markdown("Predict Your Likelihood of Graduating with First Class Honors")
 # User inputs
 with st.form("student_form"):
     # Inputs based on column order
-    level = st.selectbox("Level", options=["1st Year", "2nd Year", "3rd Year", "4th Year", "5th Year", "Graduate"])
+    level = st.selectbox("Level", options=["1st Year", "2nd Year", "3rd Year", "4th Year", "5th Year"])
     department = st.text_input("Department", value="Enter department name")
     courses_written = st.number_input("Courses Written", min_value=0, max_value=20, value=5)
     total_unit_load = st.number_input("Total Unit Load", min_value=0, max_value=100, value=20)
@@ -53,23 +53,28 @@ if submitted:
     input_df['Activity_Balance'] = input_df['Time in activities'] / (input_df['Study length'] + input_df['Time in activities'] + 1e-6)
     input_df['High_Attendance'] = (input_df['Attendance'] >= 4).astype(int)
 
-    # Ensure the column order matches the training data
-    expected_columns = [
-        'Level_1st Year', 'Level_2nd Year', 'Level_3rd Year', 'Level_4th Year', 'Level_5th Year', 'Level_Graduate'
-        'Department_Computer Science', 'Department_Engineering',  # Add all possible departments here
-        'Courses written', 'Total unit load', 'Attendance', 'Study length', 'Exam preparation',
-        'Other activities', 'Time in activities', 'Study_Efficiency', 'Activity_Balance', 'High_Attendance'
-    ]
+    # Extract feature names from the trained pipeline
+    training_columns = model.named_steps["onehotencoder"].get_feature_names_out().tolist()
 
-    # Apply OneHotEncoder (if not already applied in the pipeline)
+    # Apply OneHotEncoder from the pipeline
     encoder = model.named_steps["onehotencoder"]
     input_df_encoded = encoder.transform(input_df)
 
-    # Reorder columns and add missing ones with default value of 0
-    for col in expected_columns:
+    # Convert to DataFrame for easier handling
+    input_df_encoded = pd.DataFrame(input_df_encoded, columns=encoder.get_feature_names_out())
+
+    # Add missing columns with default value of 0
+    for col in training_columns:
         if col not in input_df_encoded.columns:
             input_df_encoded[col] = 0
-    input_df_encoded = input_df_encoded[expected_columns]
+
+    # Reorder columns to match the expected order
+    input_df_encoded = input_df_encoded[training_columns]
+
+    # Debugging: Verify alignment
+    if len(input_df_encoded.columns) != len(training_columns):
+        st.error(f"Column mismatch: Expected {len(training_columns)} columns, got {len(input_df_encoded.columns)}")
+        st.stop()
 
     # Make prediction
     prob = model.predict_proba(input_df_encoded)[0][1]
