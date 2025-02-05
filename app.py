@@ -26,7 +26,8 @@ with st.form("student_form"):
     time_in_activities = st.selectbox("Time Spent on Activities (1-5)", options=[1, 2, 3, 4, 5])
     submitted = st.form_submit_button("Predict")
 
-# Process inputs if form is submitted
+
+    # Process inputs if form is submitted
 if submitted:
     # Convert Yes/No to 1/0
     activities_binary = 1 if other_activities == "Yes" else 0
@@ -160,3 +161,11 @@ if submitted:
     ax.set_ylabel("Feature")
     ax.set_title("Logistic Regression Feature Impact")
     st.pyplot(fig)
+    
+    
+
+    
+   
+         
+
+ 
