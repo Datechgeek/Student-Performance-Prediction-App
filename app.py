@@ -24,7 +24,6 @@ with st.form("student_form"):
     exam_prep = st.selectbox("Exam Preparation Quality (1-5)", options=[1, 2, 3, 4, 5])
     other_activities = st.radio("Extracurricular Activities", ["Yes", "No"])
     time_in_activities = st.selectbox("Time Spent on Activities (1-5)", options=[1, 2, 3, 4, 5])
-
     submitted = st.form_submit_button("Predict")
 
 # Process inputs if form is submitted
@@ -53,18 +52,16 @@ if submitted:
     input_df['Activity_Balance'] = input_df['Time in activities'] / (input_df['Study length'] + input_df['Time in activities'] + 1e-6)
     input_df['High_Attendance'] = (input_df['Attendance'] >= 4).astype(int)
 
-
     # Simplify department encoding
-department_mapping = {
-    "Medical Rehabilitation": "Health Sciences",
-    "Nursing Science": "Health Sciences",
-    "Computer Science": "STEM",
-    "Mass Communication": "Humanities",
-    "Business Administration": "Business",
-    # Add more mappings as needed
-}
-
-input_df["Department"] = input_df["Department"].map(department_mapping).fillna("Other")
+    department_mapping = {
+        "Medical Rehabilitation": "Health Sciences",
+        "Nursing Science": "Health Sciences",
+        "Computer Science": "STEM",
+        "Mass Communication": "Humanities",
+        "Business Administration": "Business",
+        # Add more mappings as needed
+    }
+    input_df["Department"] = input_df["Department"].map(department_mapping).fillna("Other")
 
     # Extract feature names from the trained pipeline
     training_columns = model.named_steps["onehotencoder"].get_feature_names_out().tolist()
