@@ -64,11 +64,19 @@ if submitted:
     input_df["Department"] = input_df["Department"].map(department_mapping).fillna("Other")
 
     # Extract feature names from the trained pipeline
-    training_columns = model.named_steps["onehotencoder"].get_feature_names_out().tolist()
+    try:
+        training_columns = model.named_steps["onehotencoder"].get_feature_names_out().tolist()
+    except AttributeError:
+        st.error("Error: The model does not have a 'onehotencoder' step. Please check the pipeline.")
+        st.stop()
 
     # Apply OneHotEncoder from the pipeline
-    encoder = model.named_steps["onehotencoder"]
-    input_df_encoded = encoder.transform(input_df)
+    try:
+        encoder = model.named_steps["onehotencoder"]
+        input_df_encoded = encoder.transform(input_df)
+    except Exception as e:
+        st.error(f"Error during encoding: {e}")
+        st.stop()
 
     # Convert to DataFrame for easier handling
     input_df_encoded = pd.DataFrame(input_df_encoded, columns=encoder.get_feature_names_out())
@@ -87,8 +95,12 @@ if submitted:
         st.stop()
 
     # Make prediction
-    prob = model.predict_proba(input_df_encoded)[0][1]
-    prediction = model.predict(input_df_encoded)[0]
+    try:
+        prob = model.predict_proba(input_df_encoded)[0][1]
+        prediction = model.predict(input_df_encoded)[0]
+    except Exception as e:
+        st.error(f"Error during prediction: {e}")
+        st.stop()
 
     # --- Visual Feedback ---
     st.subheader("Prediction Results")
@@ -108,9 +120,13 @@ if submitted:
     st.subheader("Personalized Recommendations")
 
     # Get feature importances/coefficients
-    importances = model.named_steps["logisticregression"].coef_[0]
-    features = encoder.get_feature_names_out()  # Get transformed feature names
-    feature_importance = pd.Series(importances, index=features).sort_values(key=abs, ascending=False)
+    try:
+        importances = model.named_steps["logisticregression"].coef_[0]
+        features = encoder.get_feature_names_out()  # Get transformed feature names
+        feature_importance = pd.Series(importances, index=features).sort_values(key=abs, ascending=False)
+    except Exception as e:
+        st.error(f"Error retrieving feature importance: {e}")
+        st.stop()
 
     if prediction == 1:
         st.write("**To maintain your first class standing:**")
