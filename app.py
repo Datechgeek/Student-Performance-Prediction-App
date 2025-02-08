@@ -57,6 +57,13 @@ if submitted:
 
         input_df = pd.DataFrame([input_data])
 
+        
+        # --- APPLY ORIGINAL FEATURE ENGINEERING ---
+        # These must match your wrangle() function
+        input_df['Study_Efficiency'] = input_df['Exam preparation'] / (input_df['Study length'] + 1e-6)
+        input_df['Activity_Balance'] = input_df['Time in activities'] / (input_df['Study length'] + input_df['Time in activities'] + 1e-6)
+        input_df['High_Attendance'] = (input_df['Attendance'] >= 4).astype(int)
+
         # Get preprocessing pipeline components
         preprocessor = model.named_steps['onehotencoder']
         feature_columns = model.named_steps['logisticregression'].feature_names_in_
