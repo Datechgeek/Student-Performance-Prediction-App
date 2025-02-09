@@ -13,10 +13,21 @@ except Exception as e:
     st.error(f"Error loading model: {e}")
     st.stop()
 
-# Extract valid departments from model features
-department_features = [f.split('_', 1)[1].strip() for f in model.named_steps['onehotencoder'].get_feature_names_out() 
-                      if f.startswith('Department_')]
-valid_departments = sorted(list(set(department_features)))  # Remove duplicates
+# Safely extract valid departments from model features
+if hasattr(model.named_steps['onehotencoder'], 'get_feature_names_out'):
+    try:
+        department_features = [
+            re.sub(r'^Department_', '', f).strip()
+            for f in model.named_steps['onehotencoder'].get_feature_names_out()
+            if f.startswith('Department_')
+        ]
+        valid_departments = sorted(list(set(department_features)))  # Remove duplicates
+    except AttributeError:
+        st.error("Error: The OneHotEncoder in the model pipeline is not fitted. Please check the model file.")
+        st.stop()
+else:
+    st.error("Error: The model does not have a 'onehotencoder' step. Ensure the pipeline includes it.")
+    st.stop()
 
 # App header
 st.title("First Class Predictor 🎓")
@@ -39,7 +50,7 @@ with st.form("student_form"):
 # Process inputs if form is submitted
 if submitted:
     try:
-        # Convert inputs to model-compatible format
+        # Convert Yes/No to binary
         activities_binary = 1 if other_activities == "Yes" else 0
 
         # Create input DataFrame with EXACTLY the same structure as training data
@@ -54,29 +65,37 @@ if submitted:
             "Other activities": activities_binary,
             "Time in activities": time_in_activities
         }
-
         input_df = pd.DataFrame([input_data])
 
-        
-        # --- APPLY ORIGINAL FEATURE ENGINEERING ---
-        # These must match your wrangle() function
+        # --- Apply Feature Engineering ---
         input_df['Study_Efficiency'] = input_df['Exam preparation'] / (input_df['Study length'] + 1e-6)
         input_df['Activity_Balance'] = input_df['Time in activities'] / (input_df['Study length'] + input_df['Time in activities'] + 1e-6)
         input_df['High_Attendance'] = (input_df['Attendance'] >= 4).astype(int)
 
         # Get preprocessing pipeline components
-        preprocessor = model.named_steps['onehotencoder']
-        feature_columns = model.named_steps['logisticregression'].feature_names_in_
+        preprocessor = model.named_steps.get('onehotencoder', None)
+        if preprocessor is None:
+            st.error("Error: The model pipeline does not include a 'onehotencoder' step.")
+            st.stop()
 
-        # Transform input using model's preprocessor
+        # Transform input using the model's preprocessor
         processed_input = preprocessor.transform(input_df)
-        
+
         # Convert to DataFrame with correct column names
-        processed_df = pd.DataFrame(processed_input, 
-                                  columns=preprocessor.get_feature_names_out(),
-                                  index=input_df.index)
-        
+        if hasattr(preprocessor, 'get_feature_names_out'):
+            processed_columns = preprocessor.get_feature_names_out()
+        else:
+            st.error("Error: The OneHotEncoder in the model pipeline is not fitted or incompatible.")
+            st.stop()
+
+        processed_df = pd.DataFrame(processed_input, columns=processed_columns, index=input_df.index)
+
         # Align columns exactly with training data
+        feature_columns = model.named_steps['logisticregression'].feature_names_in_
+        if feature_columns is None:
+            st.error("Error: The logistic regression model does not have 'feature_names_in_' defined.")
+            st.stop()
+
         processed_df = processed_df.reindex(columns=feature_columns, fill_value=0)
 
         # Make prediction
@@ -99,13 +118,15 @@ if submitted:
 
         # --- Personalized Suggestions ---
         st.subheader("Personalized Recommendations")
+
+        # Extract feature importances
         coefficients = model.named_steps['logisticregression'].coef_[0]
         feature_importance = pd.Series(coefficients, index=feature_columns).sort_values(key=abs, ascending=False)
 
         if prediction == 1:
             st.write("**To maintain your first class standing:**")
             top_factors = feature_importance.head(3)
-            
+
             for feature in top_factors.index:
                 if 'Attendance' in feature:
                     st.write(f"✅ Maintain high attendance (current: {attendance}/5)")
@@ -113,18 +134,19 @@ if submitted:
                     st.write(f"✅ Continue thorough exam prep (current: {exam_prep}/5)")
                 elif 'Study length' in feature:
                     st.write(f"✅ Keep consistent study hours (current: {study_length}h/day)")
+
         else:
             st.write("**Key areas for improvement:**")
             top_factors = feature_importance.head(3)
-            
+
             improvement_actions = {
-                'Attendance': f"Increase class attendance (current: {attendance}/5)",
+                'Attendance': f"Increase class attendance (current: {attendance}/5 → aim for 5/5)",
                 'Exam preparation': "Improve exam preparation through:\n- Practice tests\n- Study groups\n- Early revision",
-                'Study length': f"Increase study hours (current: {study_length}h/day → aim for 4-5h)",
+                'Study length': f"Increase study hours (current: {study_length}h/day → aim for 4-5h/day)",
                 'Department': f"Seek department-specific resources in {department}",
                 'Courses written': f"Ensure complete course coverage ({courses_written}/required courses)"
             }
-            
+
             for feature in top_factors.index:
                 for key in improvement_actions:
                     if key in feature:
@@ -134,7 +156,7 @@ if submitted:
         # --- Feature Importance Visualization ---
         st.subheader("Key Influencing Factors")
         top_features = feature_importance.abs().sort_values(ascending=False).head(10)
-        
+
         fig, ax = plt.subplots(figsize=(10, 6))
         top_features.sort_values().plot(kind='barh', ax=ax)
         ax.set_title("Top Factors Affecting Prediction")
@@ -144,4 +166,4 @@ if submitted:
 
     except Exception as e:
         st.error(f"Prediction failed: {str(e)}")
-        st.write("Please ensure all inputs match the training data format")
+        st.write("Please ensure all inputs match the training data format.")
