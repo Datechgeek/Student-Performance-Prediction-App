@@ -1,6 +1,6 @@
-streamlit>=1.22.0
-scikit-learn==1.2.2
-pandas>=1.5.0
-numpy>=1.24.0
-category_encoders>=2.6.0
-matplotlib>=3.7.0
+streamlit==1.27.2  # Use a specific version for stability
+scikit-learn==1.2.2  # Exact version used during training
+pandas==1.5.3  # Pin the version for consistency
+numpy==1.23.5  # Downgrade to a stable version compatible with scikit-learn 1.2.2
+category_encoders==2.6.0  # Exact version used during training
+matplotlib==3.7.1  # Use a specific version for stability
