@@ -7,7 +7,7 @@ import re
 
 # Load model with error handling
 try:
-    with open("model-LR.pkl", "rb") as final_model:
+    with open("final-model.pkl", "rb") as final_model:
         model = pickle.load(final_model)
 except Exception as e:
     st.error(f"Error loading model: {e}")
