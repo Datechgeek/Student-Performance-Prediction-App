@@ -3,7 +3,6 @@ import pickle
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-import re
 
 # Load model with enhanced error handling
 try:
@@ -21,26 +20,24 @@ try:
     # Access the ColumnTransformer within the pipeline
     column_transformer = loaded_model.named_steps['columntransformer']
     
-    # Extract OneHotEncoder categories for 'Department'
-    department_encoder = column_transformer.transformers_[0][1]  # 'cat' transformer
-    # With this (for scikit-learn <1.0):
-    features = department_encoder.get_feature_names()
-    department_features = []
-    for f in features:
-        parts = f.split('_')
-        # 'x1_' corresponds to the 'Department' column (second in ['Level', 'Department'])
-        if parts[0] == 'x1' and len(parts) > 1:
-            department_name = '_'.join(parts[1:]).strip()
-            department_features.append(department_name)
-     
+    # Get columns used by the OneHotEncoder
+    cat_columns = column_transformer.transformers_[0][2]  # ['Level', 'Department']
     
-    # Normalize department names and create a mapping
+    # Extract OneHotEncoder and generate feature names
+    department_encoder = column_transformer.transformers_[0][1]
+    feature_names = department_encoder.get_feature_names(input_features=cat_columns)
+    
+    # Extract department names
+    department_features = [
+        name.split("_")[1] 
+        for name in feature_names 
+        if name.startswith("Department_")
+    ]
+    
+    # Normalize department names and create mapping
     department_map = {dept.strip().title(): dept for dept in department_features}
     valid_departments = sorted(department_map.keys())
     
-except AttributeError:
-    st.error("Invalid model structure. Missing required ColumnTransformer or OneHotEncoder step.")
-    st.stop()
 except Exception as e:
     st.error(f"Department processing failed: {str(e)}")
     st.stop()
@@ -70,7 +67,7 @@ if submitted:
         # Create input dataframe
         input_data = {
             "Level": level,
-            "Department": department_actual,  # Use original casing/spacing
+            "Department": department_actual,
             "Courses written": courses_written,
             "Total unit load": total_unit_load,
             "Attendance": attendance,
@@ -80,7 +77,7 @@ if submitted:
             "Time in activities": time_in_activities
         }
         
-        # Feature engineering (keep aligned with training)
+        # Feature engineering
         input_df = pd.DataFrame([input_data])
         input_df['Study_Efficiency'] = input_df['Exam preparation'] / (input_df['Study length'] + 1e-6)
         input_df['Activity_Balance'] = input_df['Time in activities'] / (input_df['Study length'] + 1e-6)
@@ -88,18 +85,18 @@ if submitted:
         
         # Preprocessing using the pipeline's ColumnTransformer
         processed = column_transformer.transform(input_df)
+        
+        # Get transformed feature names
+        transformed_columns = column_transformer.get_feature_names_out()
         processed_df = pd.DataFrame(
             processed,
-            columns=loaded_model.named_steps['logisticregression'].feature_names_in_,
+            columns=transformed_columns,
             index=input_df.index
         )
         
-        # Ensure column alignment
-        final_input = processed_df.reindex(columns=loaded_model.named_steps['logisticregression'].feature_names_in_, fill_value=0)
-        
         # Prediction
-        prob = loaded_model.predict_proba(final_input)[0][1]
-        prediction = loaded_model.predict(final_input)[0]
+        prob = loaded_model.predict_proba(processed_df)[0][1]
+        prediction = loaded_model.predict(processed_df)[0]
         
         # --- Display Results ---
         st.subheader("Prediction Results")
@@ -120,7 +117,7 @@ if submitted:
         
         # Extract feature importances
         coefficients = loaded_model.named_steps['logisticregression'].coef_[0]
-        feature_importance = pd.Series(coefficients, index=loaded_model.named_steps['logisticregression'].feature_names_in_).sort_values(key=abs, ascending=False)
+        feature_importance = pd.Series(coefficients, index=transformed_columns).sort_values(key=abs, ascending=False)
         
         if prediction == 1:
             st.write("**To maintain your first class standing:**")
