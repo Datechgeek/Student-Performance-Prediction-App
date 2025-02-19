@@ -8,34 +8,33 @@ import re
 # Load model with enhanced error handling
 try:
     with open("model-LOGR.pkl", "rb") as final_model:
-    loaded_model = pickle.load(final_model)
+        loaded_model = pickle.load(final_model)
 except FileNotFoundError:
-    st.error("Model file 'final-model.pkl' not found. Please check the file path.")
+    st.error("Model file 'model-LOGR.pkl' not found. Please check the file path.")
     st.stop()
 except Exception as e:
     st.error(f"Error loading model: {str(e)}")
     st.stop()
 
-# Department handling improvements
+# Extract valid departments from the model
 try:
-    ohe = model.named_steps['onehotencoder']
+    # Access the ColumnTransformer within the pipeline
+    column_transformer = loaded_model.named_steps['columntransformer']
+    
+    # Extract OneHotEncoder categories for 'Department'
+    department_encoder = column_transformer.transformers_[0][1]  # 'cat' transformer
     department_features = [
-        f.split('_', 1)[1]  # Safer split on first underscore
-        for f in ohe.get_feature_names_out()
+        f.split('_')[1].strip()  # Extract department names
+        for f in department_encoder.get_feature_names_out(['Level', 'Department'])
         if f.startswith('Department_')
     ]
     
-    # Create mapping from clean names to original names
-    department_map = {}
-    for dept in department_features:
-        clean = dept.strip().title()  # Normalize to title case
-        if clean not in department_map:
-            department_map[clean] = dept
-    
+    # Normalize department names and create a mapping
+    department_map = {dept.strip().title(): dept for dept in department_features}
     valid_departments = sorted(department_map.keys())
     
 except AttributeError:
-    st.error("Invalid model structure. Missing required OneHotEncoder step.")
+    st.error("Invalid model structure. Missing required ColumnTransformer or OneHotEncoder step.")
     st.stop()
 except Exception as e:
     st.error(f"Department processing failed: {str(e)}")
@@ -81,21 +80,22 @@ if submitted:
         input_df['Study_Efficiency'] = input_df['Exam preparation'] / (input_df['Study length'] + 1e-6)
         input_df['Activity_Balance'] = input_df['Time in activities'] / (input_df['Study length'] + 1e-6)
         input_df['High_Attendance'] = (input_df['Attendance'] >= 4).astype(int)
-
-        # Preprocessing
-        processed = model.named_steps['onehotencoder'].transform(input_df)
+        
+        # Preprocessing using the pipeline's ColumnTransformer
+        processed = column_transformer.transform(input_df)
         processed_df = pd.DataFrame(
             processed,
-            columns=ohe.get_feature_names_out(),
+            columns=loaded_model.named_steps['logisticregression'].feature_names_in_,
             index=input_df.index
         )
         
         # Ensure column alignment
-        final_input = processed_df.reindex(columns=model.feature_names_in_, fill_value=0)
+        final_input = processed_df.reindex(columns=loaded_model.named_steps['logisticregression'].feature_names_in_, fill_value=0)
         
         # Prediction
-        prob = model.predict_proba(final_input)[0][1]
-        prediction = model.predict(final_input)[0]
+        prob = loaded_model.predict_proba(final_input)[0][1]
+        prediction = loaded_model.predict(final_input)[0]
+        
         # --- Display Results ---
         st.subheader("Prediction Results")
         col1, col2 = st.columns([1, 2])
@@ -103,24 +103,23 @@ if submitted:
             st.metric("First Class Probability", f"{prob:.0%}")
         with col2:
             st.progress(prob)
-
+        
         result_container = st.container()
         if prediction == 1:
             result_container.success("🎉 High First Class Potential!")
         else:
             result_container.error("📈 Unlock Your Potential; Needs Improvement")
-
+        
         # --- Personalized Suggestions ---
         st.subheader("Personalized Recommendations")
-
+        
         # Extract feature importances
-        coefficients = model.named_steps['logisticregression'].coef_[0]
-        feature_importance = pd.Series(coefficients, index=feature_columns).sort_values(key=abs, ascending=False)
-
+        coefficients = loaded_model.named_steps['logisticregression'].coef_[0]
+        feature_importance = pd.Series(coefficients, index=loaded_model.named_steps['logisticregression'].feature_names_in_).sort_values(key=abs, ascending=False)
+        
         if prediction == 1:
             st.write("**To maintain your first class standing:**")
             top_factors = feature_importance.head(3)
-
             for feature in top_factors.index:
                 if 'Attendance' in feature:
                     st.write(f"✅ Maintain high attendance (current: {attendance}/5)")
@@ -128,36 +127,32 @@ if submitted:
                     st.write(f"✅ Continue thorough exam prep (current: {exam_prep}/5)")
                 elif 'Study length' in feature:
                     st.write(f"✅ Keep consistent study hours (current: {study_length}h/day)")
-
         else:
             st.write("**Key areas for improvement:**")
             top_factors = feature_importance.head(3)
-
             improvement_actions = {
                 'Attendance': f"Increase class attendance (current: {attendance}/5 → aim for 5/5)",
                 'Exam preparation': "Improve exam preparation through: \n- Practice tests\n- Study groups\n- Early revision",
                 'Study length': f"Increase study hours (current: {study_length}h/day → aim for 4-5h/day)",
-                'Department': f"Seek department-specific resources in {department}",
+                'Department': f"Seek department-specific resources in {department_display}",
                 'Courses written': f"Ensure complete course coverage ({courses_written}/required courses)"
             }
-
             for feature in top_factors.index:
                 for key in improvement_actions:
                     if key in feature:
                         st.write(f"⭐ {improvement_actions[key]}")
                         break
-
+        
         # --- Feature Importance Visualization ---
         st.subheader("Key Influencing Factors")
         top_features = feature_importance.abs().sort_values(ascending=False).head(10)
-
         fig, ax = plt.subplots(figsize=(10, 6))
         top_features.sort_values().plot(kind='barh', ax=ax)
         ax.set_title("Top Factors Affecting Prediction")
         ax.set_xlabel("Impact Strength")
         plt.tight_layout()
         st.pyplot(fig)
-
+    
     except Exception as e:
         st.error(f"Prediction failed: {str(e)}")
         st.write("Please ensure all inputs match the training data format.")
