@@ -29,6 +29,9 @@ else:
     st.error("Error: The model does not have a 'onehotencoder' step. Ensure the pipeline includes it.")
     st.stop()
 
+# Add default option
+valid_departments = ["Select a department"] + valid_departments
+
 # App header
 st.title("First Class Predictor 🎓")
 st.markdown("Predict Your Likelihood of Graduating with First Class Honors")
@@ -36,8 +39,8 @@ st.markdown("Predict Your Likelihood of Graduating with First Class Honors")
 # User inputs
 with st.form("student_form"):
     # Inputs based on column order
-    level = st.selectbox("Level", options=["1st Year", "2nd Year", "3rd Year", "4th Year", "5th Year"])
-    department = st.selectbox("Department", options=valid_departments)
+    level = st.selectbox("Level", options=["1st Year", "2nd Year", "3rd Year", "4th Year", "5th Year", "Graduate"])
+    department = st.selectbox("Department", options=valid_departments, index=0)  # Default to "Select a department"
     courses_written = st.number_input("Courses Written", min_value=0, max_value=20, value=5)
     total_unit_load = st.number_input("Total Unit Load", min_value=0, max_value=100, value=20)
     attendance = st.selectbox("Class Attendance (1-5)", options=[1, 2, 3, 4, 5])
@@ -49,6 +52,10 @@ with st.form("student_form"):
 
 # Process inputs if form is submitted
 if submitted:
+    if department == "Select a department":
+        st.error("Please select a valid department before proceeding.")
+        st.stop()
+
     try:
         # Convert Yes/No to binary
         activities_binary = 1 if other_activities == "Yes" else 0
@@ -141,7 +148,7 @@ if submitted:
 
             improvement_actions = {
                 'Attendance': f"Increase class attendance (current: {attendance}/5 → aim for 5/5)",
-                'Exam preparation': "Improve exam preparation through:\n- Practice tests\n- Study groups\n- Early revision",
+                'Exam preparation': "Improve exam preparation through: \n- Practice tests\n- Study groups\n- Early revision",
                 'Study length': f"Increase study hours (current: {study_length}h/day → aim for 4-5h/day)",
                 'Department': f"Seek department-specific resources in {department}",
                 'Courses written': f"Ensure complete course coverage ({courses_written}/required courses)"
