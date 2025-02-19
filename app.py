@@ -7,8 +7,8 @@ import re
 
 # Load model with enhanced error handling
 try:
-    with open("final-model.pkl", "rb") as final_model:
-        model = pickle.load(final_model)
+    with open("model-LOGR.pkl", "rb") as final_model:
+    loaded_model = pickle.load(final_model)
 except FileNotFoundError:
     st.error("Model file 'final-model.pkl' not found. Please check the file path.")
     st.stop()
