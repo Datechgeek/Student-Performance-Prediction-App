@@ -5,42 +5,50 @@ import numpy as np
 import matplotlib.pyplot as plt
 import re
 
-# Load model with error handling
+# Load model with enhanced error handling
 try:
     with open("final-model.pkl", "rb") as final_model:
         model = pickle.load(final_model)
+except FileNotFoundError:
+    st.error("Model file 'final-model.pkl' not found. Please check the file path.")
+    st.stop()
 except Exception as e:
-    st.error(f"Error loading model: {e}")
+    st.error(f"Error loading model: {str(e)}")
     st.stop()
 
-# Safely extract valid departments from model features
-if hasattr(model.named_steps['onehotencoder'], 'get_feature_names_out'):
-    try:
-        department_features = [
-            re.sub(r'^Department_', '', f).strip()
-            for f in model.named_steps['onehotencoder'].get_feature_names_out()
-            if f.startswith('Department_')
-        ]
-        valid_departments = sorted(list(set(department_features)))  # Remove duplicates
-    except AttributeError:
-        st.error("Error: The OneHotEncoder in the model pipeline is not fitted. Please check the model file.")
-        st.stop()
-else:
-    st.error("Error: The model does not have a 'onehotencoder' step. Ensure the pipeline includes it.")
+# Department handling improvements
+try:
+    ohe = model.named_steps['onehotencoder']
+    department_features = [
+        f.split('_', 1)[1]  # Safer split on first underscore
+        for f in ohe.get_feature_names_out()
+        if f.startswith('Department_')
+    ]
+    
+    # Create mapping from clean names to original names
+    department_map = {}
+    for dept in department_features:
+        clean = dept.strip().title()  # Normalize to title case
+        if clean not in department_map:
+            department_map[clean] = dept
+    
+    valid_departments = sorted(department_map.keys())
+    
+except AttributeError:
+    st.error("Invalid model structure. Missing required OneHotEncoder step.")
+    st.stop()
+except Exception as e:
+    st.error(f"Department processing failed: {str(e)}")
     st.stop()
 
-# Add default option
-valid_departments = ["Select a department"] + valid_departments
-
-# App header
+# App interface
 st.title("First Class Predictor 🎓")
 st.markdown("Predict Your Likelihood of Graduating with First Class Honors")
 
-# User inputs
+# Prediction form
 with st.form("student_form"):
-    # Inputs based on column order
-    level = st.selectbox("Level", options=["1st Year", "2nd Year", "3rd Year", "4th Year", "5th Year", "Graduate"])
-    department = st.selectbox("Department", options=valid_departments, index=0)  # Default to "Select a department"
+    level = st.selectbox("Level", options=["1st Year", "2nd Year", "3rd Year", "4th Year", "5th Year"])
+    department_display = st.selectbox("Department", options=valid_departments)
     courses_written = st.number_input("Courses Written", min_value=0, max_value=20, value=5)
     total_unit_load = st.number_input("Total Unit Load", min_value=0, max_value=100, value=20)
     attendance = st.selectbox("Class Attendance (1-5)", options=[1, 2, 3, 4, 5])
@@ -50,65 +58,44 @@ with st.form("student_form"):
     time_in_activities = st.selectbox("Time Spent on Activities (1-5)", options=[1, 2, 3, 4, 5])
     submitted = st.form_submit_button("Predict")
 
-# Process inputs if form is submitted
 if submitted:
-    if department == "Select a department":
-        st.error("Please select a valid department before proceeding.")
-        st.stop()
-
     try:
-        # Convert Yes/No to binary
-        activities_binary = 1 if other_activities == "Yes" else 0
-
-        # Create input DataFrame with EXACTLY the same structure as training data
+        # Map displayed department back to original format
+        department_actual = department_map[department_display]
+        
+        # Create input dataframe
         input_data = {
             "Level": level,
-            "Department": department.strip(),  # Remove any accidental whitespace
+            "Department": department_actual,  # Use original casing/spacing
             "Courses written": courses_written,
             "Total unit load": total_unit_load,
             "Attendance": attendance,
             "Study length": study_length,
             "Exam preparation": exam_prep,
-            "Other activities": activities_binary,
+            "Other activities": 1 if other_activities == "Yes" else 0,
             "Time in activities": time_in_activities
         }
+        
+        # Feature engineering (keep aligned with training)
         input_df = pd.DataFrame([input_data])
-
-        # --- Apply Feature Engineering ---
         input_df['Study_Efficiency'] = input_df['Exam preparation'] / (input_df['Study length'] + 1e-6)
-        input_df['Activity_Balance'] = input_df['Time in activities'] / (input_df['Study length'] + input_df['Time in activities'] + 1e-6)
+        input_df['Activity_Balance'] = input_df['Time in activities'] / (input_df['Study length'] + 1e-6)
         input_df['High_Attendance'] = (input_df['Attendance'] >= 4).astype(int)
 
-        # Get preprocessing pipeline components
-        preprocessor = model.named_steps.get('onehotencoder', None)
-        if preprocessor is None:
-            st.error("Error: The model pipeline does not include a 'onehotencoder' step.")
-            st.stop()
-
-        # Transform input using the model's preprocessor
-        processed_input = preprocessor.transform(input_df)
-
-        # Convert to DataFrame with correct column names
-        if hasattr(preprocessor, 'get_feature_names_out'):
-            processed_columns = preprocessor.get_feature_names_out()
-        else:
-            st.error("Error: The OneHotEncoder in the model pipeline is not fitted or incompatible.")
-            st.stop()
-
-        processed_df = pd.DataFrame(processed_input, columns=processed_columns, index=input_df.index)
-
-        # Align columns exactly with training data
-        feature_columns = model.named_steps['logisticregression'].feature_names_in_
-        if feature_columns is None:
-            st.error("Error: The logistic regression model does not have 'feature_names_in_' defined.")
-            st.stop()
-
-        processed_df = processed_df.reindex(columns=feature_columns, fill_value=0)
-
-        # Make prediction
-        prob = model.predict_proba(processed_df)[0][1]
-        prediction = model.predict(processed_df)[0]
-
+        # Preprocessing
+        processed = model.named_steps['onehotencoder'].transform(input_df)
+        processed_df = pd.DataFrame(
+            processed,
+            columns=ohe.get_feature_names_out(),
+            index=input_df.index
+        )
+        
+        # Ensure column alignment
+        final_input = processed_df.reindex(columns=model.feature_names_in_, fill_value=0)
+        
+        # Prediction
+        prob = model.predict_proba(final_input)[0][1]
+        prediction = model.predict(final_input)[0]
         # --- Display Results ---
         st.subheader("Prediction Results")
         col1, col2 = st.columns([1, 2])
