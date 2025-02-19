@@ -24,15 +24,15 @@ try:
     # Extract OneHotEncoder categories for 'Department'
     department_encoder = column_transformer.transformers_[0][1]  # 'cat' transformer
     # With this (for scikit-learn <1.0):
-features = department_encoder.get_feature_names()
-department_features = []
-for f in features:
-    parts = f.split('_')
-    # 'x1_' corresponds to the 'Department' column (second in ['Level', 'Department'])
-    if parts[0] == 'x1' and len(parts) > 1:
-        department_name = '_'.join(parts[1:]).strip()
-        department_features.append(department_name)
- 
+    features = department_encoder.get_feature_names()
+    department_features = []
+    for f in features:
+        parts = f.split('_')
+        # 'x1_' corresponds to the 'Department' column (second in ['Level', 'Department'])
+        if parts[0] == 'x1' and len(parts) > 1:
+            department_name = '_'.join(parts[1:]).strip()
+            department_features.append(department_name)
+     
     
     # Normalize department names and create a mapping
     department_map = {dept.strip().title(): dept for dept in department_features}
