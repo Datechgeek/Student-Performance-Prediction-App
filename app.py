@@ -25,7 +25,7 @@ try:
     
     # Extract OneHotEncoder and generate feature names
     department_encoder = column_transformer.transformers_[0][1]
-    feature_names = department_encoder.get_feature_names(input_features=cat_columns)
+    feature_names = department_encoder.get_feature_names_out(input_features=cat_columns)
     
     # Extract department names
     department_features = [
