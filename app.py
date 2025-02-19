@@ -102,6 +102,41 @@ if submitted:
             result_container.success("🎉 High First Class Potential!")
         else:
             result_container.error("📈 Unlock Your Potential; Needs Improvement")
+
+            # --- Personalized Recommendations ---
+        st.subheader("Personalized Recommendations")
+        
+        # Extract feature importances
+        coefficients = logistic_regression.coef_[0]
+        feature_importance = pd.Series(coefficients, 
+                                     index=processed_df.columns
+                                     ).sort_values(key=abs, ascending=False)
+        
+        if prediction == 1:
+            st.write("**To maintain your first class standing:**")
+            top_factors = feature_importance.head(3)
+            for feature in top_factors.index:
+                if 'Attendance' in feature:
+                    st.write(f"✅ Maintain high attendance (current: {attendance}/5)")
+                elif 'Exam preparation' in feature:
+                    st.write(f"✅ Continue thorough exam prep (current: {exam_prep}/5)")
+                elif 'Study length' in feature:
+                    st.write(f"✅ Keep consistent study hours (current: {study_length}h/day)")
+        else:
+            st.write("**Key areas for improvement:**")
+            top_factors = feature_importance.head(3)
+            improvement_actions = {
+                'Attendance': f"Increase class attendance (current: {attendance}/5 → aim for 5/5)",
+                'Exam preparation': "Improve exam preparation through: \n- Practice tests\n- Study groups\n- Early revision",
+                'Study length': f"Increase study hours (current: {study_length}h/day → aim for 4-5h/day)",
+                'Department': f"Seek department-specific resources in {department_display}",
+                'Courses written': f"Ensure complete course coverage ({courses_written}/required courses)"
+            }
+            for feature in top_factors.index:
+                for key in improvement_actions:
+                    if key in feature:
+                        st.write(f"⭐ {improvement_actions[key]}")
+                        break
         
         # Feature importance visualization
         st.subheader("Key Influencing Factors")
