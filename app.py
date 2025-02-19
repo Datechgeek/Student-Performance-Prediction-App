@@ -143,7 +143,7 @@ if submitted:
         coefficients = logistic_regression.coef_[0]
         feature_importance = pd.Series(coefficients, index=processed_df.columns).sort_values(key=abs, ascending=False)
         
-        top_features = feature_importance.abs().sort_values(ascending=False).head(10)
+        top_features = feature_importance.abs().sort_values(ascending=False).head(5)
         fig, ax = plt.subplots(figsize=(10, 6))
         top_features.sort_values().plot(kind='barh', ax=ax)
         ax.set_title("Top Factors Affecting Prediction")
