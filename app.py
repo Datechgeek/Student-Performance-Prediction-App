@@ -40,7 +40,7 @@ st.markdown("Predict Your Likelihood of Graduating with First Class Honors")
 with st.form("student_form"):
     level = st.selectbox("Level", options=["1st Year", "2nd Year", "3rd Year", "4th Year", "5th Year"])
     department_display = st.selectbox("Department", options=valid_departments)
-    courses_written = st.number_input("Courses Written", min_value=0, max_value=20, value=5)
+    courses_written = st.number_input("Courses Written", min_value=0, max_value=100, value=5)
     total_unit_load = st.number_input("Total Unit Load", min_value=0, max_value=100, value=20)
     attendance = st.selectbox("Class Attendance (1-5)", options=[1, 2, 3, 4, 5])
     study_length = st.selectbox("Study Hours Per Day (1-5)", options=[1, 2, 3, 4, 5])
