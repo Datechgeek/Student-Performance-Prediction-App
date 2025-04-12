@@ -4,6 +4,14 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 
+# Set page config
+st.set_page_config(
+    page_title="First Class Honors Predictor", 
+    page_icon="🎓", 
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
 # Load model with error handling
 try:
     with open("model-LOGR.pkl", "rb") as final_model:
