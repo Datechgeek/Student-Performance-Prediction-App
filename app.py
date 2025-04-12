@@ -9,7 +9,7 @@ try:
     with open("model-LOGR.pkl", "rb") as final_model:
         loaded_model = pickle.load(final_model)
 except Exception as e:
-    st.error(f"Error loading model: {str(e)}")
+    st.error(f"❌ Error loading model: {str(e)}")
     st.stop()
 
 # Extract pipeline components
@@ -29,25 +29,31 @@ try:
     valid_departments = sorted(department_map.keys())
 
 except Exception as e:
-    st.error(f"Model processing failed: {str(e)}")
+    st.error(f"❌ Model processing failed: {str(e)}")
     st.stop()
 
 # Streamlit app interface
 st.title("First Class Predictor 🎓")
-st.markdown("Predict Your Likelihood of Graduating with First Class Honors")
+st.markdown("📚 Predict Your Likelihood of Graduating with First Class Honors 🌟")
 
 # Prediction form
 with st.form("student_form"):
-    level = st.selectbox("Level", options=["1st Year", "2nd Year", "3rd Year", "4th Year", "5th Year"])
-    department_display = st.selectbox("Department", options=valid_departments)
-    courses_written = st.number_input("Courses Written", min_value=0, max_value=100, value=5)
-    total_unit_load = st.number_input("Total Unit Load", min_value=0, max_value=100, value=20)
-    attendance = st.selectbox("Class Attendance (1-5)", options=[1, 2, 3, 4, 5])
-    study_length = st.selectbox("Study Hours Per Day (1-5)", options=[1, 2, 3, 4, 5])
-    exam_prep = st.selectbox("Exam Preparation Quality (1-5)", options=[1, 2, 3, 4, 5])
-    other_activities = st.radio("Extracurricular Activities", ["Yes", "No"])
-    time_in_activities = st.selectbox("Time Spent on Activities (1-5)", options=[1, 2, 3, 4, 5])
-    submitted = st.form_submit_button("Predict")
+    st.subheader("📋 Student Information")
+    level = st.selectbox("🏫 Level", options=["1st Year", "2nd Year", "3rd Year", "4th Year", "5th Year"])
+    department_display = st.selectbox("🏢 Department", options=valid_departments)
+    courses_written = st.number_input("📝 Courses Written", min_value=0, max_value=100, value=5)
+    total_unit_load = st.number_input("📊 Total Unit Load", min_value=0, max_value=100, value=20)
+    
+    st.subheader("📚 Study Habits")
+    attendance = st.selectbox("🧑‍🏫 Class Attendance (1-5)", options=[1, 2, 3, 4, 5])
+    study_length = st.selectbox("⏰ Study Hours Per Day (1-5)", options=[1, 2, 3, 4, 5])
+    exam_prep = st.selectbox("📖 Exam Preparation Quality (1-5)", options=[1, 2, 3, 4, 5])
+    
+    st.subheader("🎭 Extracurricular")
+    other_activities = st.radio("🏆 Extracurricular Activities", ["Yes", "No"])
+    time_in_activities = st.selectbox("⚽ Time Spent on Activities (1-5)", options=[1, 2, 3, 4, 5])
+    
+    submitted = st.form_submit_button("🔍 Predict Results")
 
 if submitted:
     try:
@@ -89,22 +95,22 @@ if submitted:
         prediction = logistic_regression.predict(processed_df)[0]
         
         # Display results
-        st.subheader("Prediction Results")
+        st.subheader("🧮 Prediction Results")
         col1, col2 = st.columns([1, 2])
         with col1:
-            st.metric("First Class Probability", f"{prob:.0%}")
+            st.metric("🎯 First Class Probability", f"{prob:.0%}")
         with col2:
             st.progress(prob)
         
         # Result message
         result_container = st.container()
         if prediction == 1:
-            result_container.success("🎉 High First Class Potential!")
+            result_container.success("🎉 High First Class Potential! 🏆")
         else:
-            result_container.error("📈 Unlock Your Potential; Needs Improvement")
+            result_container.error("📈 Unlock Your Potential; Needs Improvement 💪")
 
-            # --- Personalized Recommendations ---
-        st.subheader("Personalized Recommendations")
+        # --- Personalized Recommendations ---
+        st.subheader("🧠 Personalized Recommendations")
         
         # Extract feature importances
         coefficients = logistic_regression.coef_[0]
@@ -113,24 +119,24 @@ if submitted:
                                      ).sort_values(key=abs, ascending=False)
         
         if prediction == 1:
-            st.write("**To maintain your first class standing:**")
+            st.write("**✨ To maintain your first class standing:**")
             top_factors = feature_importance.head(3)
             for feature in top_factors.index:
                 if 'Attendance' in feature:
-                    st.write(f"✅ Maintain high attendance (current: {attendance}/5)")
+                    st.write(f"✅ Maintain high attendance (current: {attendance}/5) 📅")
                 elif 'Exam preparation' in feature:
-                    st.write(f"✅ Continue thorough exam prep (current: {exam_prep}/5)")
+                    st.write(f"✅ Continue thorough exam prep (current: {exam_prep}/5) 📚")
                 elif 'Study length' in feature:
-                    st.write(f"✅ Keep consistent study hours (current: {study_length}h/day)")
+                    st.write(f"✅ Keep consistent study hours (current: {study_length}h/day) ⏱️")
         else:
-            st.write("**Key areas for improvement:**")
+            st.write("**🚀 Key areas for improvement:**")
             top_factors = feature_importance.head(3)
             improvement_actions = {
-                'Attendance': f"Increase class attendance (current: {attendance}/5 → aim for 5/5)",
-                'Exam preparation': "Improve exam preparation through: \n- Practice tests\n- Study groups\n- Early revision",
-                'Study length': f"Increase study hours (current: {study_length}h/day → aim for 4-5h/day)",
-                'Department': f"Seek department-specific resources in {department_display}",
-                'Courses written': f"Ensure complete course coverage ({courses_written}/required courses)"
+                'Attendance': f"Increase class attendance (current: {attendance}/5 → aim for 5/5) 🏫",
+                'Exam preparation': "Improve exam preparation through: \n- 📝 Practice tests\n- 👥 Study groups\n- 📆 Early revision",
+                'Study length': f"Increase study hours (current: {study_length}h/day → aim for 4-5h/day) 📚",
+                'Department': f"Seek department-specific resources in {department_display} 🔍",
+                'Courses written': f"Ensure complete course coverage ({courses_written}/required courses) ✅"
             }
             for feature in top_factors.index:
                 for key in improvement_actions:
@@ -139,18 +145,18 @@ if submitted:
                         break
         
         # Feature importance visualization
-        st.subheader("Key Influencing Factors")
+        st.subheader("📊 Key Influencing Factors")
         coefficients = logistic_regression.coef_[0]
         feature_importance = pd.Series(coefficients, index=processed_df.columns).sort_values(key=abs, ascending=False)
         
         top_features = feature_importance.abs().sort_values(ascending=False).head(5)
         fig, ax = plt.subplots(figsize=(10, 6))
         top_features.sort_values().plot(kind='barh', ax=ax)
-        ax.set_title("Top Factors Affecting Prediction")
-        ax.set_xlabel("Impact Strength")
+        ax.set_title("📈 Top Factors Affecting Prediction")
+        ax.set_xlabel("Impact Strength 💪")
         plt.tight_layout()
         st.pyplot(fig)
 
     except Exception as e:
-        st.error(f"Prediction failed: {str(e)}")
-        st.write("Please ensure all inputs match the training data format.")
+        st.error(f"❌ Prediction failed: {str(e)}")
+        st.write("📋 Please ensure all inputs match the training data format.")
