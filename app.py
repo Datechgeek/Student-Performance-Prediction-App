@@ -57,10 +57,17 @@ with st.form("student_form"):
     study_length = st.selectbox("⏰ Study Hours Per Day (1-5)", options=[1, 2, 3, 4, 5])
     exam_prep = st.selectbox("📖 Exam Preparation Quality (1-5)", options=[1, 2, 3, 4, 5])
     
+    # Extracurricular section with conditional display
     st.subheader("🎭 Extracurricular")
     other_activities = st.radio("🏆 Extracurricular Activities", ["Yes", "No"])
-    time_in_activities = st.selectbox("⚽ Time Spent on Activities (1-5)", options=[1, 2, 3, 4, 5])
     
+    # Only show time selector when "Yes" is selected
+    if other_activities == "Yes":
+        time_in_activities = st.selectbox("⚽ Time Spent on Activities (1-5)", options=[1, 2, 3, 4, 5])
+    else:
+        st.info("Since you're not participating in extracurricular activities, time spent is automatically set to 0.")
+        time_in_activities = 0  # Set to zero when no activities
+        
     submitted = st.form_submit_button("🔍 Predict Results")
 
 if submitted:
