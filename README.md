@@ -70,15 +70,7 @@ streamlit run app.py
   - Random state: 42 (reproducibility)
 * **Feature Importance:** The model identified **study hours**, **attendance**, and **exam preparation** as the top 3 predictors of first-class graduation.
 
-### Model Configuration
-```python
-LogisticRegression(
-    class_weight='balanced',
-    max_iter=1000,
-    solver='saga',
-    random_state=42
-)
-```
+
 
 ## 🎯 Application Features
 
